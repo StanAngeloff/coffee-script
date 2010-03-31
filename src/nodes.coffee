@@ -305,6 +305,8 @@ exports.ValueNode: class ValueNode extends BaseNode
     soaked:   false
     only:     del(o, 'only_first')
     op:       del(o, 'operation')
+    splice:   del(o, 'splice')
+    replace:  del(o, 'replace')
     props:    if only then @properties[0...@properties.length - 1] else @properties
     baseline: @base.compile o
     baseline: "($baseline)" if @base instanceof ObjectNode and @has_properties()
@@ -319,6 +321,16 @@ exports.ValueNode: class ValueNode extends BaseNode
           complete: "($temp = $complete)$@SOAK" + (baseline: temp + prop.compile(o))
         else
           complete: complete + @SOAK + (baseline: + prop.compile(o))
+      else if prop instanceof SliceNode
+        o.array: complete
+        if splice
+          o.replace: replace
+          part: prop.compile_splice(o)
+        else
+          part: prop.compile_slice(o)
+        baseline = part
+        complete = part
+        @last: part
       else
         part: prop.compile(o)
         baseline: + part
@@ -415,7 +427,7 @@ exports.CurryNode: class CurryNode extends CallNode
     (new ArrayNode(@args)).compile o
 
   compile_node: (o) ->
-    utility 'slice'
+    utility 'to_array'
     ref: new ValueNode literal utility 'bind'
     (new CallNode(ref, [@meth, @context, literal(@arguments(o))])).compile o
 
@@ -516,11 +528,22 @@ exports.SliceNode: class SliceNode extends BaseNode
     @children: [@range: range]
     this
 
-  compile_node: (o) ->
-    from:       @range.from.compile(o)
-    to:         @range.to.compile(o)
-    plus_part:  if @range.exclusive then '' else ' + 1'
-    ".slice($from, $to$plus_part)"
+  compile_slice: (o) ->
+    @compile_utility_call o, 'slice'
+
+  compile_splice: (o) ->
+    replace: del o, 'replace'
+    @compile_utility_call o, 'splice', [replace]
+
+  compile_utility_call: (o, key, args) ->
+    utility 'range'
+    array:      del o, 'array'
+    from:       if @range.from? then @range.from else literal('null')
+    to:         if @range.to? then @range.to else literal('null')
+    exclusive:  if @range.exclusive then 'true' else 'false'
+    ref:        new ValueNode literal utility key
+    call:       new CallNode ref, [literal(array), from, to, literal(exclusive)].concat(args || [])
+    call.compile(o)
 
 #### ObjectNode
 
@@ -718,14 +741,7 @@ exports.AssignNode: class AssignNode extends BaseNode
   # Compile the assignment from an array splice literal, using JavaScript's
   # `Array#splice` method.
   compile_splice: (o) ->
-    name:   @variable.compile merge o, {only_first: true}
-    l:      @variable.properties.length
-    range:  @variable.properties[l - 1].range
-    plus:   if range.exclusive then '' else ' + 1'
-    from:   range.from.compile(o)
-    to:     range.to.compile(o) + ' - ' + from + plus
-    val:    @value.compile(o)
-    "${name}.splice.apply($name, [$from, $to].concat($val))"
+    @variable.compile(merge(o, {only_first: true, splice: true, replace: @value}))
 
 #### CodeNode
 
@@ -774,7 +790,7 @@ exports.CodeNode: class CodeNode extends BaseNode
     func: "function${ if @bound then '' else name_part }(${ params.join(', ') }) {$code${@idt(if @bound then 1 else 0)}}"
     func: "($func)" if top and not @bound
     return func unless @bound
-    utility 'slice'
+    utility 'to_array'
     ref: new ValueNode literal utility 'bind'
     (new CallNode ref, [literal(func), literal('this')]).compile o
 
@@ -818,13 +834,13 @@ exports.SplatNode: class SplatNode extends BaseNode
     for trailing in @trailings
       o.scope.assign(trailing.compile(o), "arguments[arguments.length - $@trailings.length + $i]")
       i: + 1
-    "$name = ${utility('slice')}.call(arguments, $@index, arguments.length - ${@trailings.length})"
+    "$name = ${utility('to_array')}.call(arguments, $@index, arguments.length - ${@trailings.length})"
 
   # A compiling a splat as a destructuring assignment means slicing arguments
   # from the right-hand-side's corresponding array.
   compile_value: (o, name, index, trailings) ->
     trail: if trailings then ", ${name}.length - $trailings" else ''
-    "${utility 'slice'}.call($name, $index$trail)"
+    "${utility 'to_array'}.call($name, $index$trail)"
 
   # Utility function that converts arbitrary number of elements, mixed with
   # splats, to a proper array
@@ -1322,16 +1338,40 @@ UTILITIES: {
   # Bind a function to a calling context, optionally including curried arguments.
   # See [Underscore's implementation](http://jashkenas.github.com/coffee-script/documentation/docs/underscore.html#section-47).
   __bind:   """
-            function(func, obj, args) {
-                return function() {
-                  return func.apply(obj || {}, args ? args.concat(__slice.call(arguments, 0)) : arguments);
-                };
-              }
+              function(func, obj, args) {
+                  return function() {
+                    return func.apply(obj || {}, args ? args.concat(__to_array.call(arguments, 0)) : arguments);
+                  };
+                }
+            """
+
+  # Slicing and splicing with support for negative indices.
+  __range:  """
+              function(array, from, to, exclusive) {
+                  return [
+                    (from < 0 ? from + array.length : from || 0),
+                    (to < 0 ? to + array.length : to || array.length) + (exclusive ? 0 : 1)
+                  ];
+                }
+            """
+
+  __slice:  """
+              function(array, from, to, exclusive) {
+                  var _a;
+                  return array.slice((_a = __range(array, from, to, exclusive))[0], _a[1]);
+                }
+            """
+
+  __splice: """
+              function(array, from, to, exclusive, replace) {
+                  var _a;
+                  return array.splice.apply(array, [(_a = __range(array, from, to, exclusive))[0], _a[1] - _a[0]].concat(replace));
+                }
             """
 
   # Shortcuts to speed up the lookup time for native functions.
   __hasProp: 'Object.prototype.hasOwnProperty'
-  __slice: 'Array.prototype.slice'
+  __to_array: 'Array.prototype.slice'
 
 }
 
