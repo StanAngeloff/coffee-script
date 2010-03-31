@@ -21,3 +21,8 @@ deepEqual asc, obj.desc
 asc: nested[0][...]
 ok asc[- ( -> 10)()] is 0
 ok asc[- 11] is undefined
+
+counter: 0
+fn: -> counter: + 1
+obj?.nested?[- fn()]?[-1]?
+ok counter is 1
