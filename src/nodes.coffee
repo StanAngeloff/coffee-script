@@ -319,8 +319,19 @@ exports.ValueNode: class ValueNode extends BaseNode
         if @base instanceof CallNode and prop is props[0]
           temp: o.scope.free_variable()
           complete: "($temp = $complete)$@SOAK" + (baseline: temp + prop.compile(o))
+        else if prop instanceof IndexNode and prop.is_simple()
+          [temp_complete, temp_baseline]: [o.scope.free_variable(), o.scope.free_variable()]
+          o.array: temp_complete
+          complete: "($temp_complete = $complete)$@SOAK(${if prop is props[-1] then '' else "$temp_baseline = "}${prop.compile_simple(o)})"
+          baseline: temp_baseline
         else
           complete: complete + @SOAK + (baseline: + prop.compile(o))
+      else if prop instanceof IndexNode and prop.is_simple()
+        o.array: complete
+        part: prop.compile_simple(o)
+        baseline: part
+        complete: part
+        @last: part
       else if prop instanceof SliceNode
         o.array: complete
         if splice
@@ -328,8 +339,8 @@ exports.ValueNode: class ValueNode extends BaseNode
           part: prop.compile_splice(o)
         else
           part: prop.compile_slice(o)
-        baseline = part
-        complete = part
+        baseline: part
+        complete: part
         @last: part
       else
         part: prop.compile(o)
@@ -472,9 +483,18 @@ exports.IndexNode: class IndexNode extends BaseNode
     @children:  [@index: index]
     @soak_node: tag is 'soak'
 
+  is_simple: ->
+    return true if @index instanceof OpNode and @index.is_unary() and @index.operator is '-'
+
   compile_node: (o) ->
     idx: @index.compile o
     "[$idx]"
+
+  compile_simple: (o) ->
+    array: del o, 'array'
+    temp:  o.scope.free_variable()
+    idx:   @index.compile o
+    "($temp = $array)[$idx + ${temp}.length]"
 
 #### RangeNode
 

@@ -71,3 +71,10 @@ deepEqual lstFruit2, lstFruit
 lstFruit[1]: 'blueberry'
 deepEqual lstFruit2, ['apple', 'banana', 'cherry', 'date']
 
+# Slicing & splicing
+a: [0...10]
+b: [10...0]
+[a[0...5], b[0...5]]: [b[5...10], a[5...10]]
+
+deepEqual a, [5, 4, 3, 2, 1, 5, 6, 7, 8, 9]
+deepEqual b, [5, 6, 7, 8, 9, 5, 4, 3, 2, 1]
