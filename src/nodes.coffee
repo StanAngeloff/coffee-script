@@ -639,9 +639,10 @@ exports.AssignNode: class AssignNode extends BaseNode
   PROTO_ASSIGN: /^(\S+)\.prototype/
   LEADING_DOT:  /^\.(prototype\.)?/
 
-  constructor: (variable, value, context) ->
+  constructor: (variable, value, context, control) ->
     @children: [@variable: variable, @value: value]
     @context: context
+    @control: control
 
   top_sensitive: ->
     true
@@ -672,6 +673,7 @@ exports.AssignNode: class AssignNode extends BaseNode
       @value.name:  last  if last.match(IDENTIFIER)
       @value.proto: proto if proto
     val: @value.compile o
+    return val.replace(/function[^\(]*/, "${ @control.compile(o) } $name").replace(/^\(+|\)+$/g, '') if @control
     return "$name: $val" if @context is 'object'
     o.scope.find name unless @is_value() and @variable.has_properties()
     val: "$name = $val"
@@ -878,12 +880,12 @@ exports.WhileNode: class WhileNode extends BaseNode
     o.indent:   @idt 1
     o.top:      true
     cond:       @condition.compile(o)
-    set:        ''
+    set_pre:    ''
     unless top
       rvar:     o.scope.free_variable()
-      set:      "$@tab$rvar = [];\n"
+      set_pre:  "$@tab$rvar = [];\n"
       @body:    PushNode.wrap(rvar, @body) if @body
-    pre:        "$set${@tab}while ($cond)"
+    pre:        "$set_pre${@tab}while ($cond)"
     return "$pre null;$post" if not @body
     @body:      Expressions.wrap([new IfNode(@guard, @body)]) if @guard
     if @returns

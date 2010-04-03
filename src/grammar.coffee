@@ -144,13 +144,22 @@ grammar: {
     o "Assignable ASSIGN Expression",           -> new AssignNode $1, $3
   ]
 
+  # A control level applied to an assignment. This can be either a getter or a
+  # setter within an object literal or a class body.
+  AssignControl: [
+    o "GET",                                    -> new LiteralNode yytext
+    o "SET",                                    -> new LiteralNode yytext
+  ]
+
   # Assignment when it happens within an object literal. The difference from
   # the ordinary **Assign** is that these allow numbers and strings as keys.
   AssignObj: [
-    o "Identifier",                             -> new ValueNode $1
-    o "AlphaNumeric"
-    o "Identifier ASSIGN Expression",           -> new AssignNode new ValueNode($1), $3, 'object'
-    o "AlphaNumeric ASSIGN Expression",         -> new AssignNode new ValueNode($1), $3, 'object'
+    o "Identifier",                                     -> new ValueNode $1
+    o "AlphaNumeric",                                   -> new ValueNode $1
+    o "Identifier ASSIGN Expression",                   -> new AssignNode new ValueNode($1), $3, 'object'
+    o "AssignControl Identifier ASSIGN Expression",     -> new AssignNode new ValueNode($2), $4, 'object', $1
+    o "AlphaNumeric ASSIGN Expression",                 -> new AssignNode new ValueNode($1), $3, 'object'
+    o "AssignControl AlphaNumeric ASSIGN Expression",   -> new AssignNode new ValueNode($2), $4, 'object', $1
     o "Comment"
   ]
 
