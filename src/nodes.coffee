@@ -602,12 +602,12 @@ exports.ClassNode: class ClassNode extends BaseNode
   # equivalent syntax tree and compile that, in pieces. You can see the
   # constructor, property assignments, and inheritance getting built out below.
   compile_node: (o) ->
-    extension:       @parent and new ExtendsNode(@variable, @parent)
-    constructor:     null
-    props:           new Expressions()
-    getters_setters: new Expressions()
-    explicit_this:   false
-    o.top:           true
+    extension:     @parent and new ExtendsNode(@variable, @parent)
+    constructor:   null
+    props:         new Expressions()
+    controls:      new Expressions()
+    explicit_this: false
+    o.top:         true
 
     for prop in @properties
       [pvar, func]: [prop.variable, prop.value]
@@ -617,7 +617,7 @@ exports.ClassNode: class ClassNode extends BaseNode
         explicit_this: true
       else if pvar and prop.control
         define: new ValueNode(literal('this'), [new AccessorNode(literal(@control[prop.control.value]))])
-        getters_setters.push(new CallNode(define, [literal("'${ pvar.base.value }'"), prop.value]))
+        controls.push(new CallNode(define, [literal("'${ pvar.base.value }'"), prop.value]))
         explicit_this: true
       else
         if pvar
@@ -636,7 +636,7 @@ exports.ClassNode: class ClassNode extends BaseNode
         constructor: new AssignNode(@variable, new CodeNode())
 
     func: constructor.value.body
-    func.push(getters_setters) if not getters_setters.empty()
+    func.push(controls) if not controls.empty()
     func.push(new ReturnNode(literal('this'))) if explicit_this
 
     construct:                       @idt() + constructor.compile(o) + ';\n'
