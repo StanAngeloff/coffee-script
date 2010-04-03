@@ -581,6 +581,13 @@ exports.ArrayNode: class ArrayNode extends BaseNode
 # The CoffeeScript class definition.
 exports.ClassNode: class ClassNode extends BaseNode
 
+  # Mappings between **AssignNode**'s `control` property values and JavaScript
+  # methods.
+  control: {
+    'get': '__defineGetter__'
+    'set': '__defineSetter__'
+  }
+
   # Initialize a **ClassNode** with its name, an optional superclass, and a
   # list of prototype property assignments.
   constructor: (variable, parent, props) ->
@@ -595,16 +602,23 @@ exports.ClassNode: class ClassNode extends BaseNode
   # equivalent syntax tree and compile that, in pieces. You can see the
   # constructor, property assignments, and inheritance getting built out below.
   compile_node: (o) ->
-    extension:   @parent and new ExtendsNode(@variable, @parent)
-    constructor: null
-    props:       new Expressions()
-    o.top:       true
+    extension:       @parent and new ExtendsNode(@variable, @parent)
+    constructor:     null
+    props:           new Expressions()
+    getters_setters: new Expressions()
+    explicit_this:   false
+    o.top:           true
 
     for prop in @properties
       [pvar, func]: [prop.variable, prop.value]
       if pvar and pvar.base.value is 'constructor' and func instanceof CodeNode
         func.body.push(new ReturnNode(literal('this')))
         constructor: new AssignNode(@variable, func)
+        explicit_this: true
+      else if pvar and prop.control
+        define: new ValueNode(literal('this'), [new AccessorNode(literal(@control[prop.control.value]))])
+        getters_setters.push(new CallNode(define, [literal("'${ pvar.base.value }'"), prop.value]))
+        explicit_this: true
       else
         if pvar
           access: if prop.context is 'this' then pvar.base.properties[0] else new AccessorNode(pvar, 'prototype')
@@ -620,6 +634,10 @@ exports.ClassNode: class ClassNode extends BaseNode
         ])))
       else
         constructor: new AssignNode(@variable, new CodeNode())
+
+    func: constructor.value.body
+    func.push(getters_setters) if not getters_setters.empty()
+    func.push(new ReturnNode(literal('this'))) if explicit_this
 
     construct:                       @idt() + constructor.compile(o) + ';\n'
     props:     if props.empty() then '' else props.compile(o) + '\n'
