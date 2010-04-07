@@ -517,8 +517,8 @@ grammar: {
   ]
 
   # Macros are functions that manipulate the AST directly. Unlike a function
-  # definition, macros don't require the assign operator or a glyph. Their
-  # contents can be on the same line or indented as a block.
+  # definition, macros don't require a function glyph, they are pure
+  # assignments either on a single line or as a block.
   Macro: [
     o "MACRO Identifier ASSIGN Expression",     -> new MacroNode $2, $4
     o "MACRO Identifier ASSIGN Block",          -> new MacroNode $2, $4

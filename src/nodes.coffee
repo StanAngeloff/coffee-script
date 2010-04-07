@@ -386,7 +386,6 @@ exports.CallNode: class CallNode extends BaseNode
     if MacroNode.defined name
       func: new ParentheticalNode(new CodeNode([], Expressions.wrap([MacroNode.map[name].body])))
       call: new CallNode(new ValueNode(func, [new AccessorNode(literal('apply'))]), [literal('this'), literal('[this.args]')])
-      puts "new Expressions(${ call.compile(o) })"
       o.top: true
       macro_compiled: eval "new Expressions(${ call.compile(o) })"
       o.top: @macro_call: true
@@ -1279,7 +1278,7 @@ exports.IfNode: class IfNode extends BaseNode
     else_part:  if @else_body then @else_body_node().compile(o) else 'null'
     "$if_part : $else_part"
 
-#### ClassNode
+#### MacroNode
 
 # The CoffeeScript macro definition.
 exports.MacroNode: class MacroNode extends BaseNode
