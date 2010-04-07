@@ -516,12 +516,11 @@ grammar: {
     o "Expression UNLESS Expression",           -> new IfNode $3, Expressions.wrap([$1]), {statement: true, invert: true}
   ]
 
-  # Macros are functions that manipulate the AST directly. Unlike a function
-  # definition, macros don't require a function glyph, they are pure
-  # assignments either on a single line or as a block.
+  # Macros are functions manipulating the AST. Syntax is similar to a regular
+  # CoffeeScript function definition, but prefixed with `macro`.
   Macro: [
-    o "MACRO Identifier ASSIGN Expression",     -> new MacroNode $2, $4
-    o "MACRO Identifier ASSIGN Block",          -> new MacroNode $2, $4
+    o "MACRO Identifier ASSIGN FuncGlyph Expression",     -> new MacroNode $2, $5
+    o "MACRO Identifier ASSIGN FuncGlyph Block",          -> new MacroNode $2, $5
   ]
 
   # Arithmetic and logical operators, working on one or more operands.
