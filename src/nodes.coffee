@@ -54,7 +54,7 @@ exports.BaseNode: class BaseNode
     top:      if @top_sensitive() then @options.top else del @options, 'top'
     closure:  @is_statement() and not @is_pure_statement() and not top and
               not @options.as_statement and not (this instanceof CommentNode) and
-              not @contains_pure_statement()
+              not (this instanceof MacroNode) and not @contains_pure_statement()
     if closure then @compile_closure(@options) else @compile_node(@options)
 
   # Statements converted into expressions via closure-wrapping share a scope
@@ -162,7 +162,7 @@ exports.Expressions: class Expressions extends BaseNode
   make_return: ->
     idx:  @expressions.length - 1
     last: @expressions[idx]
-    last: @expressions[idx: - 1] if last instanceof CommentNode
+    last: @expressions[idx: - 1] while idx and (last instanceof CommentNode or last instanceof MacroNode)
     return this if not last or last instanceof ReturnNode
     @expressions[idx]: last.make_return() unless last.contains_pure_statement()
     this
@@ -173,7 +173,7 @@ exports.Expressions: class Expressions extends BaseNode
     if o.scope then super(o) else @compile_root(o)
 
   compile_node: (o) ->
-    (@compile_expression(node, merge(o)) for node in @expressions).join("\n")
+    (expression for expression in (@compile_expression(node, merge(o)) for node in @expressions) when expression?).join("\n")
 
   # If we happen to be the top-level **Expressions**, wrap everything in
   # a safety closure, unless requested not to.
@@ -197,8 +197,10 @@ exports.Expressions: class Expressions extends BaseNode
   # statement, ask the statement to do so.
   compile_expression: (node, o) ->
     @tab: o.indent
+    return null if node instanceof MacroNode
     compiled_node: node.compile merge o, {top: true}
-    if node.is_statement() then compiled_node else "${@idt()}$compiled_node;"
+    return null unless compiled_node?
+    if node.is_statement() or node.macro_call then compiled_node else "${@idt()}$compiled_node;"
 
 # Wrap up the given nodes as an **Expressions**, unless it already happens
 # to be one.
@@ -380,7 +382,16 @@ exports.CallNode: class CallNode extends BaseNode
       return @compile_splat(o) if arg instanceof SplatNode
     args: (arg.compile(o) for arg in @args).join(', ')
     return @compile_super(args, o) if @is_super
-    "${@prefix()}${@variable.compile(o)}($args)"
+    name: @variable.compile(o)
+    if MacroNode.defined name
+      func: new ParentheticalNode(new CodeNode([], Expressions.wrap([MacroNode.map[name].body])))
+      call: new CallNode(new ValueNode(func, [new AccessorNode(literal('apply'))]), [literal('this'), literal('[this.args]')])
+      puts "new Expressions(${ call.compile(o) })"
+      o.top: true
+      macro_compiled: eval "new Expressions(${ call.compile(o) })"
+      o.top: @macro_call: true
+      return macro_compiled.compile(o)
+    "${@prefix()}${name}($args)"
 
   # `super()` is converted into a call against the superclass's implementation
   # of the current function.
@@ -649,6 +660,9 @@ exports.AssignNode: class AssignNode extends BaseNode
   is_value: ->
     @variable instanceof ValueNode
 
+  is_macro: ->
+    @is_value() and @value instanceof MacroNode
+
   make_return: ->
     return new Expressions [this, new ReturnNode(@variable)]
 
@@ -661,6 +675,9 @@ exports.AssignNode: class AssignNode extends BaseNode
   # has not been seen yet within the current scope, declare it.
   compile_node: (o) ->
     top:    del o, 'top'
+    if @is_macro()
+      @value.alias @macro_alias: @variable.compile(o)
+      return null
     return  @compile_pattern_match(o) if @is_statement()
     return  @compile_splice(o) if @is_value() and @variable.is_splice()
     stmt:   del o, 'as_statement'
@@ -672,6 +689,11 @@ exports.AssignNode: class AssignNode extends BaseNode
       @value.name:  last  if last.match(IDENTIFIER)
       @value.proto: proto if proto
     val: @value.compile o
+    val: @value.macro_alias if @value.macro_alias?
+    if MacroNode.defined val
+      MacroNode.map[val].alias @macro_alias: name
+      return null
+    MacroNode.unlink name if MacroNode.defined name
     return "$name: $val" if @context is 'object'
     o.scope.find name unless @is_value() and @variable.has_properties()
     val: "$name = $val"
@@ -1256,6 +1278,28 @@ exports.IfNode: class IfNode extends BaseNode
     if_part:    @condition.compile(o) + ' ? ' + @body_node().compile(o)
     else_part:  if @else_body then @else_body_node().compile(o) else 'null'
     "$if_part : $else_part"
+
+#### ClassNode
+
+# The CoffeeScript macro definition.
+exports.MacroNode: class MacroNode extends BaseNode
+
+  @map: []
+
+  # Create a new macro and add it to the global map. If a macro with the same
+  # name already exists, it is overridden.
+  constructor: (name, body) ->
+    @children: [@name: name, @body: body]
+    @alias name.value, body
+
+  # Add an alias for this **MacroNode**.
+  alias: (name) ->
+    MacroNode.map[name]: @
+
+  @defined: (name) -> MacroNode.map[name]?
+  @unlink: (name) -> delete MacroNode.map[name]
+
+statement MacroNode
 
 # Faux-Nodes
 # ----------

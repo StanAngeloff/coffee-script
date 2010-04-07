@@ -451,7 +451,8 @@ COFFEE_ALIASES:  ["and", "or", "is", "isnt", "not"]
 COFFEE_KEYWORDS: COFFEE_ALIASES.concat [
   "then", "unless", "until",
   "yes", "no", "on", "off",
-  "of", "by", "where", "when"
+  "of", "by", "where", "when",
+  "macro"
 ]
 
 # The combined list of keywords is the superset that gets passed verbatim to

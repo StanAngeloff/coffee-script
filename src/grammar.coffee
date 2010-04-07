@@ -102,6 +102,7 @@ grammar: {
     o "Existence"
     o "Comment"
     o "Extension"
+    o "Macro"
   ]
 
   # A an indented block of expressions. Note that the [Rewriter](rewriter.html)
@@ -515,6 +516,14 @@ grammar: {
     o "Expression UNLESS Expression",           -> new IfNode $3, Expressions.wrap([$1]), {statement: true, invert: true}
   ]
 
+  # Macros are functions that manipulate the AST directly. Unlike a function
+  # definition, macros don't require the assign operator or a glyph. Their
+  # contents can be on the same line or indented as a block.
+  Macro: [
+    o "MACRO Identifier ASSIGN Expression",     -> new MacroNode $2, $4
+    o "MACRO Identifier ASSIGN Block",          -> new MacroNode $2, $4
+  ]
+
   # Arithmetic and logical operators, working on one or more operands.
   # Here they are grouped by order of precedence. The actual precedence rules
   # are defined at the bottom of the page. It would be shorter if we could
@@ -606,6 +615,7 @@ operators: [
   ["left",      'EXTENDS']
   ["right",     'ASSIGN', 'RETURN']
   ["right",     '->', '=>', '<-', 'UNLESS', 'IF', 'ELSE', 'WHILE', 'UNTIL']
+  ["right",     'MACRO']
 ]
 
 # Wrapping Up
