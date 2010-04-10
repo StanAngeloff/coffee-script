@@ -110,6 +110,12 @@ exports.BaseNode: class BaseNode
       block node
       node.traverse block if node.traverse
 
+  # Flatten the AST to an Array. See `BaseNode#traverse`.
+  flatten: () ->
+    memo: [@]
+    @traverse (node) -> memo: memo.concat(node)
+    memo
+
   # `toString` representation of the node, for inspecting the parse tree.
   # This is what `coffee --nodes` prints out.
   toString: (idt) ->
@@ -385,7 +391,7 @@ exports.CallNode: class CallNode extends BaseNode
     name: @variable.compile(o)
     if MacroNode.defined name
       func: new ParentheticalNode(new CodeNode([], Expressions.wrap([MacroNode.map[name].body])))
-      call: new CallNode(new ValueNode(func, [new AccessorNode(literal('apply'))]), [literal('this'), literal('[this.args]')])
+      call: new CallNode(new ValueNode(func, [new AccessorNode(literal('apply'))]), [literal('this'), literal('this.args')])
       o.top: true
       macro_compiled: eval "new Expressions(${ call.compile(o) })"
       o.top: @macro_call: true
