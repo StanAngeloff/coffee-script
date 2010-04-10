@@ -1,7 +1,6 @@
 macro from: ->
-  args: Array::slice.call arguments
-  throw new Error("'from' syntax is 'from Object use property1, property2, ...'") if not (args[0] instanceof CallNode)
-  list: item.value for item in args[0].flatten() when item instanceof LiteralNode
+  throw new Error("'from' syntax is 'from Object use property1, property2, ...'") if not (arguments[0] instanceof CallNode)
+  list: item.value for item in arguments[0].flatten() when item instanceof LiteralNode
   throw new Error("'from' needs an Object to import from.") if list.length < 1
   source: list.splice(0, 1)[0]
   throw new Error("'from' syntax is 'from $source use property1, property2, ...'") if list.splice(0, 1)[0] isnt 'use'
