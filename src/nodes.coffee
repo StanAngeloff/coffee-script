@@ -253,6 +253,40 @@ exports.ReturnNode: class ReturnNode extends BaseNode
 
 statement ReturnNode, true
 
+#### UsingNode
+
+# A C-like `using` statement. Import a list of properties on an object into
+# the current scope.
+exports.UsingNode: class UsingNode extends BaseNode
+
+  constructor: (properties, expression) ->
+    @children: [@properties: properties, @expression: expression]
+
+  compile_node: (o) ->
+    assigns:    []
+    expression: @expression.compile(o)
+    cached:     if @expression instanceof ValueNode and not @expression.has_properties() then expression else o.scope.free_variable()
+    for property in @properties
+      has_children: !!property.children.length
+      if property.alias?
+        alias: property.alias.compile(o)
+      else
+        if has_children
+          last: nested: property.children.pop()
+          last: nested while last isnt (nested: nested.unwrap())
+        else
+          last: property
+        throw new Error("cannot determine property alias for '${ property.compile(o) }'") if not (last instanceof LiteralNode)
+        alias: last.compile(o)
+        alias: alias.substr(1, alias.length - 2) if alias.match IS_STRING
+      o.scope.find alias
+      is_string: property.compile(o).match IS_STRING
+      type: if not has_children and is_string then IndexNode else AccessorNode
+      assigns.push "$alias = ${ new ValueNode(literal(cached), [new type(property)]).compile(o) };"
+    (if cached is expression then "$@tab" else "${@tab}$cached = $expression;\n$@tab") + assigns.join("\n$@tab")
+
+statement UsingNode, true
+
 #### ValueNode
 
 # A value, variable or literal or parenthesized, indexed or dotted into,
@@ -447,6 +481,9 @@ exports.AccessorNode: class AccessorNode extends BaseNode
     @soak_node: tag is 'soak'
     this
 
+  # The value can be unwrapped as its name.
+  unwrap: -> @name
+
   compile_node: (o) ->
     proto_part: if @prototype then 'prototype.' else ''
     ".$proto_part${@name.compile(o)}"
@@ -459,6 +496,9 @@ exports.IndexNode: class IndexNode extends BaseNode
   constructor: (index, tag) ->
     @children:  [@index: index]
     @soak_node: tag is 'soak'
+
+  # The value can be unwrapped as its index.
+  unwrap: -> @index
 
   compile_node: (o) ->
     idx: @index.compile o

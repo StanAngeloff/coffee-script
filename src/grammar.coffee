@@ -91,6 +91,7 @@ grammar: {
     o "Code"
     o "Operation"
     o "Assign"
+    o "Using"
     o "If"
     o "Try"
     o "While"
@@ -158,6 +159,31 @@ grammar: {
   Return: [
     o "RETURN Expression",                      -> new ReturnNode $2
     o "RETURN",                                 -> new ReturnNode new ValueNode new LiteralNode 'null'
+  ]
+
+  # A C-like `using` statement to import a list of properties into the scope.
+  Using: [
+    o "USING UsingPropertyList OF Expression",            -> new UsingNode $2, $4
+  ]
+
+  # A restricted list of object accessors that can be used as part of a
+  # `using` statement.
+  UsingProperty: [
+    o "Identifier",                                       -> new ValueNode $1
+    o "UsingProperty PROPERTY_ACCESS Identifier",         -> new ValueNode $1, [new AccessorNode($3)]
+    o "UsingProperty INDEX_START Expression INDEX_END",   -> new ValueNode $1, [new IndexNode($3)]
+  ]
+
+  # The list of restricted properties that the `using` statement takes.
+  UsingPropertyList: [
+    o "STRING",                                           -> [new LiteralNode $1]
+    o "UsingProperty",                                    -> [$1]
+    o "STRING AS Identifier",                             -> wrap: new LiteralNode($1); wrap.alias: new ValueNode($3); [wrap]
+    o "UsingProperty AS Identifier",                      -> $1.alias: new ValueNode($3); [$1]
+    o "UsingPropertyList , STRING",                       -> $1.concat [new LiteralNode($3)]
+    o "UsingPropertyList , UsingProperty",                -> $1.concat [$3]
+    o "UsingPropertyList , STRING AS Identifier",         -> wrap: new LiteralNode($3); wrap.alias: new ValueNode($5); $1.concat [wrap]
+    o "UsingPropertyList , UsingProperty AS Identifier",  -> $3.alias: new ValueNode($5); $1.concat [$3]
   ]
 
   # A comment. Because CoffeeScript passes comments through to JavaScript, we
@@ -601,10 +627,10 @@ operators: [
   ["left",      '.']
   ["right",     'INDENT']
   ["left",      'OUTDENT']
-  ["right",     'WHEN', 'LEADING_WHEN', 'IN', 'OF', 'BY', 'THROW']
+  ["right",     'WHEN', 'LEADING_WHEN', 'IN', 'AS', 'OF', 'BY', 'THROW']
   ["right",     'FOR', 'NEW', 'SUPER', 'CLASS']
   ["left",      'EXTENDS']
-  ["right",     'ASSIGN', 'RETURN']
+  ["right",     'ASSIGN', 'RETURN', 'USING']
   ["right",     '->', '=>', '<-', 'UNLESS', 'IF', 'ELSE', 'WHILE', 'UNTIL']
 ]
 
