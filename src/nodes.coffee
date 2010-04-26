@@ -612,7 +612,6 @@ exports.ClassNode: class ClassNode extends BaseNode
     for prop in @properties
       [pvar, func]: [prop.variable, prop.value]
       if pvar and pvar.base.value is 'constructor' and func instanceof CodeNode
-        func.body.push(new ReturnNode(literal('this')))
         constructor: new AssignNode(@variable, func)
         explicit_this: true
       else if pvar and prop.control
