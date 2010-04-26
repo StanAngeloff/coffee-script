@@ -86,6 +86,7 @@ grammar: {
   # them somewhat circular.
   Expression: [
     o "Value"
+    o "Pipe"
     o "Call"
     o "Curry"
     o "Code"
@@ -291,6 +292,13 @@ grammar: {
     o "",                                       -> []
     o "ClassAssign",                            -> [$1]
     o "ClassBody TERMINATOR ClassAssign",       -> $1.concat $3
+  ]
+
+  # Unix-like pipe for chained function calls. Reverts to `OpNode` for bitwise
+  # operations.
+  Pipe: [
+    o "Expression | Expression",                -> new PipeNode $1, $3
+    o "Expression | || Expression",             -> new PipeNode $1, $4, true
   ]
 
   # The three flavors of function call: normal, object instantiation with `new`,
@@ -545,7 +553,6 @@ grammar: {
     o "Expression >> Expression",               -> new OpNode '>>', $1, $3
     o "Expression >>> Expression",              -> new OpNode '>>>', $1, $3
     o "Expression & Expression",                -> new OpNode '&', $1, $3
-    o "Expression | Expression",                -> new OpNode '|', $1, $3
     o "Expression ^ Expression",                -> new OpNode '^', $1, $3
 
     o "Expression <= Expression",               -> new OpNode '<=', $1, $3
