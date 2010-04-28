@@ -390,7 +390,7 @@ exports.CallNode: class CallNode extends BaseNode
     return @compile_super(args, o) if @is_super
     name: @variable.compile(o)
     if MacroNode.defined name
-      func: new ParentheticalNode(new CodeNode([], Expressions.wrap([MacroNode.map[name].body])))
+      func: new ParentheticalNode(new CodeNode([], Expressions.wrap([MacroNode.map["macro:$name"].body])))
       call: new CallNode(new ValueNode(func, [new AccessorNode(literal('apply'))]), [literal('this'), literal('this.args')])
       o.top: true
       macro_compiled: eval "new Expressions(${ call.compile(o) })"
@@ -696,7 +696,7 @@ exports.AssignNode: class AssignNode extends BaseNode
     val: @value.compile o
     val: @value.macro_alias if @value.macro_alias?
     if MacroNode.defined val
-      MacroNode.map[val].alias @macro_alias: name
+      MacroNode.map["macro:$val"].alias @macro_alias: name
       return null
     MacroNode.unlink name if MacroNode.defined name
     return "$name: $val" if @context is 'object'
@@ -1299,10 +1299,10 @@ exports.MacroNode: class MacroNode extends BaseNode
 
   # Add an alias for this **MacroNode**.
   alias: (name) ->
-    MacroNode.map[name]: @
+    MacroNode.map["macro:$name"]: @
 
-  @defined: (name) -> MacroNode.map[name]?
-  @unlink: (name) -> delete MacroNode.map[name]
+  @defined: (name) -> MacroNode.map["macro:$name"]?
+  @unlink: (name) -> delete MacroNode.map["macro:$name"]
 
 statement MacroNode
 
