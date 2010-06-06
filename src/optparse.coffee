@@ -26,9 +26,22 @@ exports.OptionParser: class OptionParser
       is_option: !!(arg.match(LONG_FLAG) or arg.match(SHORT_FLAG))
       matched_rule: no
       for rule in @rules
-        if rule.short_flag is arg or rule.long_flag is arg
-          options[rule.name]: if rule.has_argument then args.shift() else true
-          matched_rule: yes
+        flags: [rule.short_flag, rule.long_flag]
+        matched_rule: or starts(arg, flag) for flag in flags
+        if matched_rule
+          value: true
+          if rule.has_argument
+            matched_value: no
+            for flag in flags when starts(arg, flag) and arg.length > flag.length
+              value: arg.substring(flag.length)
+              matched_value: yes
+              break
+            value: args.shift() if not matched_value
+          if rule.is_list
+            options[rule.name]: [] if not (rule.name in options)
+            options[rule.name].push value
+          else
+            options[rule.name]: value
           break
       throw new Error "unrecognized option: $arg" if is_option and not matched_rule
       options.arguments.push arg unless is_option
@@ -64,7 +77,7 @@ build_rules: (rules) ->
 
 # Build a rule from a `-o` short flag, a `--output [DIR]` long flag, and the
 # description of what the option does.
-build_rule: (short_flag, long_flag, description) ->
+build_rule: (short_flag, long_flag, description, is_list) ->
   match:      long_flag.match(OPTIONAL)
   long_flag:  long_flag.match(LONG_FLAG)[1]
   {
@@ -73,6 +86,7 @@ build_rule: (short_flag, long_flag, description) ->
     long_flag:    long_flag
     description:  description
     has_argument: !!(match and match[1])
+    is_list:      !!is_list
   }
 
 # Normalize arguments by expanding merged flags into multiple flags. This allows
@@ -86,3 +100,7 @@ normalize_arguments: (args) ->
     else
       result.push arg
   result
+
+# Peek at the beginning of a given string to see if it matches a sequence.
+starts: (string, literal, start) ->
+  literal and literal.length and string.substring(start, (start or 0) + literal.length) is literal
