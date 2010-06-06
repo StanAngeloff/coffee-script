@@ -26,6 +26,7 @@ exports.Rewriter: class Rewriter
   # corrected before implicit parentheses can be wrapped around blocks of code.
   rewrite: (tokens) ->
     @tokens: tokens
+    @rewrite_with_extensions false
     @adjust_comments()
     @remove_leading_newlines()
     @remove_mid_expression_newlines()
@@ -34,7 +35,12 @@ exports.Rewriter: class Rewriter
     @add_implicit_parentheses()
     @ensure_balance BALANCED_PAIRS
     @rewrite_closing_parens()
+    @rewrite_with_extensions true
     @tokens
+
+  rewrite_with_extensions: (post) ->
+    extension.rewrite.apply this, [extension, post] for extension in Rewriter.extensions
+    true
 
   # Rewrite the token stream, looking one token ahead and behind.
   # Allow the return value of the block to tell us how many tokens to move
@@ -248,6 +254,12 @@ exports.Rewriter: class Rewriter
           return 1
       else
         return 1
+
+  # Rewriter Properties
+  # ----------------
+
+  # There are no exensions to the core rewriter by default.
+  @extensions: []
 
 # Constants
 # ---------

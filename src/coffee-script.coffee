@@ -11,6 +11,7 @@ if process?
   path:         require 'path'
   Lexer:        require('./lexer').Lexer
   parser:       require('./parser').parser
+  Rewriter:     require('./rewriter').Rewriter
   helpers:      require('./helpers').helpers
   helpers.extend global, require './nodes'
   if require.registerExtension
@@ -19,6 +20,7 @@ else
   this.exports: this.CoffeeScript: {}
   Lexer:        this.Lexer
   parser:       this.parser
+  Rewriter:     this.Rewriter
   helpers:      this.helpers
 
 # The current CoffeeScript version number.
@@ -32,7 +34,9 @@ lexer: new Lexer()
 exports.compile: compile: (code, options) ->
   options: or {}
   try
-    (parser.parse lexer.tokenize code).compile options
+    node: (parser.parse lexer.tokenize code)
+    extension.traverse.apply node, [extension] for extension in extensions
+    node.compile options
   catch err
     err.message: "In $options.source, $err.message" if options.source
     throw err
@@ -54,6 +58,28 @@ exports.run: ((code, options) ->
   __dirname: path.dirname(__filename)
   eval exports.compile code, options
 )
+
+#### BaseExtension
+
+# The **BaseExtension** is the abstract base class for all extensions.
+# Each subclass implements the methods it is interested in. This allows
+# customizations on all levels except parsing -- `tokenize`, `rewrite` and the
+# syntax tree.
+exports.BaseExtension: class BaseExtension
+
+  # Default implementations of the common extension properties and methods.
+  # Subclasses will override these with custom logic, if needed.
+  type:     'BaseExtension'
+
+  tokenize: (self)       -> false
+  rewrite:  (self, post) -> false
+  traverse: (self)       -> false
+
+extensions: []
+exports.extend: (extension) ->
+  throw new Error("'extension' must be an instance of 'BaseExtension'") if not (extension instanceof BaseExtension)
+  target.push extension for target in [Lexer.extensions, Rewriter.extensions, extensions]
+  true
 
 # The real Lexer produces a generic stream of tokens. This object provides a
 # thin wrapper around it, compatible with the Jison API. We can then pass it
