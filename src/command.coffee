@@ -21,19 +21,21 @@ BANNER: '''
 
 # The list of all the valid option flags that `coffee` knows how to handle.
 SWITCHES: [
-  ['-c', '--compile',       'compile to JavaScript and save as .js files']
-  ['-i', '--interactive',   'run an interactive CoffeeScript REPL']
-  ['-o', '--output [DIR]',  'set the directory for compiled JavaScript']
-  ['-w', '--watch',         'watch scripts for changes, and recompile']
-  ['-p', '--print',         'print the compiled JavaScript to stdout']
-  ['-l', '--lint',          'pipe the compiled JavaScript through JSLint']
-  ['-s', '--stdio',         'listen for and compile scripts over stdio']
-  ['-e', '--eval',          'compile a string from the command line']
-  [      '--no-wrap',       'compile without the top-level function wrapper']
-  ['-t', '--tokens',        'print the tokens that the lexer produces']
-  ['-n', '--nodes',         'print the parse tree that Jison produces']
-  ['-v', '--version',       'display CoffeeScript version']
-  ['-h', '--help',          'display this help message']
+  ['-c', '--compile',        'compile to JavaScript and save as .js files']
+  ['-i', '--interactive',    'run an interactive CoffeeScript REPL']
+  ['-o', '--output [DIR]',   'set the directory for compiled JavaScript']
+  ['-w', '--watch',          'watch scripts for changes, and recompile']
+  ['-p', '--print',          'print the compiled JavaScript to stdout']
+  ['-l', '--lint',           'pipe the compiled JavaScript through JSLint']
+  ['-s', '--stdio',          'listen for and compile scripts over stdio']
+  ['-e', '--eval',           'compile a string from the command line']
+  ['-I', '--include [DIR]',  'specify require.paths directory (may be used more than once)', true]
+  ['-r', '--require [FILE]', 'require the library, before executing your script', true]
+  [      '--no-wrap',        'compile without the top-level function wrapper']
+  ['-t', '--tokens',         'print the tokens that the lexer produces']
+  ['-n', '--nodes',          'print the parse tree that Jison produces']
+  ['-v', '--version',        'display CoffeeScript version']
+  ['-h', '--help',           'display this help message']
 ]
 
 # Top-level objects shared by all the functions.
@@ -85,6 +87,12 @@ compile_scripts: ->
 compile_script: (source, code, base) ->
   o: options
   code_opts: compile_options source
+  require.paths.unshift path for path in o.include.reverse() if o.include?
+  if o.require?
+    expose: {options, CoffeeScript}
+    (global[k]: v)       for k, v of expose
+    require file         for file in o.require.reverse()
+    delete global[k]     for k of expose
   try
     if      o.tokens      then print_tokens CoffeeScript.tokens code
     else if o.nodes       then puts CoffeeScript.nodes(code).toString()
