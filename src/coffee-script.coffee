@@ -81,6 +81,12 @@ exports.extend: (extension) ->
   target.push extension for target in [Lexer.extensions, Rewriter.extensions, extensions]
   true
 
+exports.reset: ->
+  Lexer.extensions:    []
+  Rewriter.extensions: []
+  extensions:          []
+  true
+
 # The real Lexer produces a generic stream of tokens. This object provides a
 # thin wrapper around it, compatible with the Jison API. We can then pass it
 # directly as a "Jison lexer".
