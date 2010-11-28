@@ -319,6 +319,7 @@ exports.Lexer = class Lexer
     else if value in COMPARE         then tag = 'COMPARE'
     else if value in COMPOUND_ASSIGN then tag = 'COMPOUND_ASSIGN'
     else if value in UNARY           then tag = 'UNARY'
+    else if value is MERGE           then tag = 'MERGE'
     else if value in SHIFT           then tag = 'SHIFT'
     else if value in LOGIC or value is '?' and prev?.spaced then tag = 'LOGIC'
     else if prev and not prev.spaced
@@ -541,6 +542,7 @@ OPERATOR   = /// ^ (
    | [-+*/%<>&|^!?=]=  # compound assign / compare
    | >>>=?             # zero-fill right shift
    | ([-+:])\1         # doubles
+   | <<<               # object merge
    | ([&|<>])\2=?      # logic / shift
    | \?\.              # soak access
    | \.{2,3}           # range or splat
@@ -604,6 +606,9 @@ UNARY   = ['!', '~', 'NEW', 'TYPEOF', 'DELETE']
 
 # Logical tokens.
 LOGIC   = ['&&', '||', '&', '|', '^']
+
+# Object merging token
+MERGE   = '<<<'
 
 # Bit-shifting tokens.
 SHIFT   = ['<<', '>>', '>>>']
