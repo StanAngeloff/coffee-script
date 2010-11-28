@@ -1162,6 +1162,16 @@ exports.While = class While extends Base
       code += '\n' + new Return(new Literal rvar).compile o
     code
 
+#### Merge
+
+# Extends one object with properties from another.
+
+exports.Merge = class Merge extends Base
+  constructor: (@left, @right) ->
+    # pass
+  
+  children: ['left', 'right']
+
 #### Op
 
 # Simple Arithmetic and logical operations. Performs some conversion from
