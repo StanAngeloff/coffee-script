@@ -523,7 +523,6 @@ grammar =
     o 'Expression -  Expression',               -> new Op '-' , $1, $3
 
     o 'Expression MATH     Expression',         -> new Op $2, $1, $3
-    o 'Expression MERGE    Expression',         -> new Merge  $1, $3
     o 'Expression SHIFT    Expression',         -> new Op $2, $1, $3
     o 'Expression COMPARE  Expression',         -> new Op $2, $1, $3
     o 'Expression LOGIC    Expression',         -> new Op $2, $1, $3
@@ -538,6 +537,9 @@ grammar =
     o 'SimpleAssignable COMPOUND_ASSIGN
        INDENT Expression OUTDENT',              -> new Assign $1, $4, $2
     o 'SimpleAssignable EXTENDS Expression',    -> new Extends $1, $3
+
+    o 'Expression MERGE Expression',            -> new Merge $1, $3
+    o 'Expression MERGE Expression WHEN Code',  -> new Merge $1, $3, $5
   ]
 
 
@@ -560,7 +562,6 @@ operators = [
   ['right',     'UNARY']
   ['left',      'MATH']
   ['left',      '+', '-']
-  ['right',     'MERGE']
   ['left',      'SHIFT']
   ['left',      'RELATION']
   ['left',      'COMPARE']
@@ -568,6 +569,7 @@ operators = [
   ['nonassoc',  'INDENT', 'OUTDENT']
   ['right',     '=', ':', 'COMPOUND_ASSIGN', 'RETURN', 'THROW', 'EXTENDS']
   ['right',     'FORIN', 'FOROF', 'BY', 'WHEN']
+  ['right',     'MERGE']
   ['right',     'IF', 'UNLESS', 'ELSE', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'SUPER', 'CLASS']
   ['right',     'POST_IF', 'POST_UNLESS']
 ]
