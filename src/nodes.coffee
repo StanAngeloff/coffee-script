@@ -1168,9 +1168,33 @@ exports.While = class While extends Base
 
 exports.Merge = class Merge extends Base
   constructor: (@left, @right) ->
-    # pass
+    @returns = no
   
   children: ['left', 'right']
+
+  isStatement: YES
+
+  makeReturn: ->
+    @returns = yes
+    this
+
+  compileNode: (o) ->
+    name = new Literal o.scope.freeVariable 'name'
+    ref  = new Literal o.scope.freeVariable 'ref'
+    node = new For(
+      new Expressions [
+        new Assign(
+          new Value @left, [new Index name]
+          ref
+        )
+      ]
+      source: (if @right.isStatement() then Closure.wrap @right else @right), object: yes
+      name
+      ref
+    )
+    if o.level > LEVEL_TOP or @returns
+      node = new Expressions [node, @left.makeReturn()]
+    node.compile o, LEVEL_TOP
 
 #### Op
 
