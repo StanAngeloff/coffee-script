@@ -1167,7 +1167,7 @@ exports.While = class While extends Base
 # Extends one object with properties from another.
 
 exports.Merge = class Merge extends Base
-  constructor: (@left, @right) ->
+  constructor: (@left, @right, @guard) ->
     @returns = no
   
   children: ['left', 'right']
@@ -1179,22 +1179,36 @@ exports.Merge = class Merge extends Base
     this
 
   compileNode: (o) ->
-    name = new Literal o.scope.freeVariable 'name'
-    ref  = new Literal o.scope.freeVariable 'ref'
-    node = new For(
+    name  = new Literal o.scope.freeVariable 'name'
+    ref   = new Literal o.scope.freeVariable 'ref'
+    nodes = new Expressions
+    guard = null
+    if @guard
+      fn = o.scope.freeVariable 'fn'
+      nodes.push new Assign(
+        new Value new Literal fn
+        @guard
+      )
+      o.sharedScope = o.scope
+      guard = new Call new Value(new Literal fn),
+        switch @guard.params.length
+          when 1 then [name]
+          when 2 then [name, ref]
+          else []
+    nodes.push new For(
       new Expressions [
         new Assign(
           new Value @left, [new Index name]
           ref
         )
       ]
-      source: (if @right.isStatement() then Closure.wrap @right else @right), object: yes
+      source: (if @right.isStatement() then Closure.wrap @right else @right), object: yes, guard: guard
       name
       ref
     )
     if o.level > LEVEL_TOP or @returns
-      node = new Expressions [node, @left.makeReturn()]
-    node.compile o, LEVEL_TOP
+      nodes.push @left.makeReturn()
+    nodes.compile o, LEVEL_TOP
 
 #### Op
 
