@@ -98,6 +98,7 @@ grammar =
     o 'For'
     o 'Switch'
     o 'Class'
+    o 'Trait'
   ]
 
   # An indented block of expressions. Note that the [Rewriter](rewriter.html)
@@ -273,13 +274,33 @@ grammar =
   # and optional references to the superclass.
   Class: [
     o 'CLASS',                                      -> new Class
-    o 'CLASS Block',                                -> new Class null, null, $2
-    o 'CLASS EXTENDS Value',                        -> new Class null, $3
-    o 'CLASS EXTENDS Value Block',                  -> new Class null, $3, $4
+    o 'CLASS Block',                                -> new Class null, null, null, $2
+    o 'CLASS ClassExtends',                         -> new Class null, $2.parent, $2.traits
+    o 'CLASS ClassExtends Block',                   -> new Class null, $2.parent, $2.traits, $3
     o 'CLASS SimpleAssignable',                     -> new Class $2
-    o 'CLASS SimpleAssignable Block',               -> new Class $2, null, $3
-    o 'CLASS SimpleAssignable EXTENDS Value',       -> new Class $2, $4
-    o 'CLASS SimpleAssignable EXTENDS Value Block', -> new Class $2, $4, $5
+    o 'CLASS SimpleAssignable Block',               -> new Class $2, null, null, $3
+    o 'CLASS SimpleAssignable ClassExtends',        -> new Class $2, $3.parent, $3.traits
+    o 'CLASS SimpleAssignable ClassExtends Block',  -> new Class $2, $3.parent, $3.traits, $4
+  ]
+
+  # A combination of `extends` and `implements` in a class definition.
+  ClassExtends: [
+    o "EXTENDS Value",                              -> new Extends null, $2
+    o "IMPLEMENTS ValueList",                       -> new Extends null, null, $2
+    o "EXTENDS Value IMPLEMENTS ValueList",         -> new Extends null, $2, $4
+  ]
+
+  # Comma-separated list of traits a class is implementing.
+  ValueList: [
+    o "Value",                                      -> [$1]
+    # TODO: this is broken, but we don't need it for now
+    # o "ValueList , Value",                          -> [$1]
+  ]
+
+  # Traits are lightweight classes that can be implemented in other classes.
+  # They are not part of the prototypical chain.
+  Trait: [
+    o 'TRAIT SimpleAssignable Block',               -> new Trait $2, null, null, $3
   ]
 
   # Ordinary function invocation, or a chained series of calls.
@@ -536,6 +557,7 @@ grammar =
     o 'SimpleAssignable COMPOUND_ASSIGN
        INDENT Expression OUTDENT',              -> new Assign $1, $4, $2
     o 'SimpleAssignable EXTENDS Expression',    -> new Extends $1, $3
+    o 'SimpleAssignable IMPLEMENTS Expression', -> new Extends $1, null, [$3]
   ]
 
 
@@ -563,9 +585,9 @@ operators = [
   ['left',      'COMPARE']
   ['left',      'LOGIC']
   ['nonassoc',  'INDENT', 'OUTDENT']
-  ['right',     '=', ':', 'COMPOUND_ASSIGN', 'RETURN', 'THROW', 'EXTENDS']
+  ['right',     '=', ':', 'COMPOUND_ASSIGN', 'RETURN', 'THROW', 'EXTENDS', 'IMPLEMENTS']
   ['right',     'FORIN', 'FOROF', 'BY', 'WHEN']
-  ['right',     'IF', 'UNLESS', 'ELSE', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'SUPER', 'CLASS']
+  ['right',     'IF', 'UNLESS', 'ELSE', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'SUPER', 'CLASS', 'TRAIT']
   ['right',     'POST_IF', 'POST_UNLESS']
 ]
 
