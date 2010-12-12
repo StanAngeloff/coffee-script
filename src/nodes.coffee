@@ -535,14 +535,17 @@ exports.Call = class Call extends Base
 # After `goog.inherits` from the
 # [Closure Library](http://closure-library.googlecode.com/svn/docs/closureGoogBase.js.html).
 exports.Extends = class Extends extends Base
-  constructor: (@child, @parent) ->
+  constructor: (@child, @parent, @traits) ->
 
-  children: ['child', 'parent']
+  children: ['child', 'parent', 'traits']
 
   # Hooks one constructor into another's prototype chain.
   compile: (o) ->
     utility 'hasProp'
-    new Call(new Value(new Literal utility 'extends'), [@child, @parent]).compile o
+    code = []
+    code.push new Call(new Value(new Literal utility 'extends'), [@child, @parent]).compile o                     if @parent
+    code.push new Call(new Value(new Literal utility 'implements'), [@child, impl]).compile o for impl in @traits if @traits
+    code.join ";\n#{o.indent}"
 
 #### Access
 
@@ -729,10 +732,10 @@ exports.Arr = class Arr extends Base
 # Initialize a **Class** with its name, an optional superclass, and a
 # list of prototype property assignments.
 exports.Class = class Class extends Base
-  constructor: (@variable, @parent, @body = new Expressions) ->
+  constructor: (@variable, @parent, @traits = null, @body = new Expressions) ->
     @boundFuncs = []
 
-  children: ['variable', 'parent', 'body']
+  children: ['variable', 'parent', 'traits', 'body']
 
   # Figure out the appropriate name for the constructor function of this class.
   determineName: ->
@@ -818,7 +821,7 @@ exports.Class = class Class extends Base
 
     @setContext name
     @walkBody name
-    @body.expressions.unshift new Extends lname, @parent if @parent
+    @body.expressions.unshift new Extends lname, @parent, @traits if @parent or @traits
     @ensureConstructor name
     @body.expressions.push lname
     @addBoundFunctions o
@@ -826,6 +829,30 @@ exports.Class = class Class extends Base
     klass = new Parens new Call(new Code [], @body), true
     klass = new Assign @variable, klass if @variable
     klass.compile o
+
+#### Trait
+
+# Traits are lightweight classes that can be implemented in other classes.
+# Initialize a **Trait** with its name and a list of property assignments.
+# Unlike **Class** constructors and local variables are not allowed.
+exports.Trait = class Trait extends Class
+
+  # Walk the body of the trait, looking for prototype properties to be converted
+  # and guard against local variables.
+  walkBody: (name) ->
+    @traverseChildren false, (child) =>
+      if child instanceof Expressions
+        for node, i in exps = child.expressions
+          if node instanceof Value and node.isObject(true)
+            exps[i] = @addProperties node, name
+          else
+            throw SyntaxError "\"#{node.constructor.name}\" not permitted in the context of a trait definition."
+        child.expressions = exps = flatten exps
+
+  # Prevent constructor defined on the trait.
+  ensureConstructor: (name) ->
+    throw SyntaxError "\"constructor\" cannot be defined on a trait." if @ctor
+    super
 
 #### Assign
 
@@ -1665,6 +1692,17 @@ UTILITIES =
       ctor.prototype = parent.prototype;
       child.prototype = new ctor;
       child.__super__ = parent.prototype;
+      return child;
+    }
+  '''
+
+  # Implement a trait. Don't set it up in the prototypical chain, simply
+  # copy over the methods as if they were defined on the child.
+  implements: '''
+    function(child, trait) {
+      var cproto = child.prototype, tproto = trait.prototype;
+      for (var key in trait) { if (!__hasProp.call(child, key)) child[key] = trait[key]; }
+      for (var key in tproto) { if (!__hasProp.call(cproto, key)) cproto[key] = tproto[key]; }
       return child;
     }
   '''

@@ -494,7 +494,7 @@ JS_KEYWORDS = [
   'new', 'delete', 'typeof', 'in', 'instanceof'
   'return', 'throw', 'break', 'continue', 'debugger'
   'if', 'else', 'switch', 'for', 'while', 'try', 'catch', 'finally'
-  'class', 'extends', 'super'
+  'class', 'trait', 'extends', 'implements', 'super'
 ]
 
 # CoffeeScript-only keywords.
